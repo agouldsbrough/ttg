@@ -433,7 +433,9 @@ function render() {
   const computerTurn = isComputerTurn();
   el.turnLabel.textContent = state.gameOver ? "Game over" : state.currentPlayer === 1 && state.mode === "computer" ? "Computer" : `Player ${state.currentPlayer + 1}`;
   el.phaseLabel.textContent = isRevealActive()
-    ? "Drink reveal"
+    ? state.reveal.ready && state.reveal.poisoned
+      ? "Fatal drink"
+      : "Drink reveal"
     : computerTurn
         ? "Computer thinking"
         : "Place or drink";
@@ -525,7 +527,7 @@ function renderDrinkReveal() {
 
   if (reveal.ready) {
     el.revealResult.textContent = reveal.poisoned
-      ? "Poison is unopposed. The drinker is eliminated."
+      ? `${reveal.glassName} dies. Press End Game to reveal who won.`
       : reveal.poisonRevealed
         ? "Poison appeared, but the Antidote cancels it. The drinker survives."
         : "No Poison appeared. The drinker survives.";
@@ -534,7 +536,7 @@ function renderDrinkReveal() {
   }
 
   el.revealContinueBtn.disabled = !reveal.ready;
-  el.revealContinueBtn.textContent = reveal.ready ? "Continue" : "Revealing...";
+  el.revealContinueBtn.textContent = reveal.ready ? reveal.poisoned ? "End Game" : "Continue" : "Revealing...";
   scheduleRevealSequence();
 }
 

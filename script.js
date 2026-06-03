@@ -500,7 +500,12 @@ function renderResultBanner() {
   el.deathBanner.hidden = false;
   el.deathBannerKicker.textContent = "Game over";
   el.deathBannerTitle.textContent = state.winnerTeam === "Guest" ? "Guests win" : "Poisoner wins";
-  el.deathBannerDetail.textContent = `Poisoner: ${poisonerLabel()}. Start a new game to play again.`;
+  const silentDeathDetail = state.deadGlassIndex === 1
+    ? roleOfGlass(1) === "Poisoner"
+      ? "The Silent Guest was the Poisoner."
+      : "The Silent Guest was a Guest."
+    : "";
+  el.deathBannerDetail.textContent = `${silentDeathDetail} Poisoner: ${poisonerLabel()}. Start a new game to play again.`.trim();
 }
 
 function renderDrinkReveal() {

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The Third Glass Prototype</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="topbar" aria-label="Game controls">
+        <div>
+          <p class="eyebrow">playtest prototype</p>
+          <h1>The Third Glass</h1>
+          <p class="subtitle">A candlelit duel of hidden pours, poisoned cups, and one silent witness.</p>
+        </div>
+        <div class="topbar-actions">
+          <label class="mode-control" for="modeSelect">
+            <span>Mode</span>
+            <select id="modeSelect">
+              <option value="computer" selected>Play computer</option>
+              <option value="human">Two players</option>
+            </select>
+          </label>
+          <button id="newGameBtn" type="button">New Game</button>
+          <button id="passBtn" type="button" class="secondary">Pass Turn</button>
+        </div>
+      </section>
+
+      <section class="status-strip" aria-live="polite">
+        <div>
+          <span class="label">Current turn</span>
+          <strong id="turnLabel">Player 1</strong>
+        </div>
+        <div>
+          <span class="label">Phase</span>
+          <strong id="phaseLabel">Place or drink</strong>
+        </div>
+        <div>
+          <span class="label">Round</span>
+          <strong id="roundLabel">1</strong>
+        </div>
+      </section>
+
+      <details class="rules-dropdown">
+        <summary>Rule Summary</summary>
+        <div class="rules-menu">
+          <div>
+            <h2>Goal</h2>
+            <p>The Poisoner tries to kill a player with Poison. If the Silent Guest dies, roles are revealed and Final Toast begins.</p>
+          </div>
+          <div>
+            <h2>Turns</h2>
+            <p>Each player has one drawn card. Click a destination glass to place that card secretly, then draw a new card.</p>
+          </div>
+          <div>
+            <h2>Glasses</h2>
+            <p>There are three glasses: Player 1, the Silent Guest, and Player 2. Every card is 1 unit.</p>
+          </div>
+          <div>
+            <h2>Drinking</h2>
+            <p>When a glass reaches 5 units, it is drunk. Reveal 2 random cards from that glass.</p>
+          </div>
+          <div>
+            <h2>Poison</h2>
+            <p>If Poison is revealed, the drinker dies unless Antidote is also one of the two revealed cards. Player death ends the game.</p>
+          </div>
+          <div>
+            <h2>Survival</h2>
+            <p>If the drinker survives, empty that glass and shuffle every card in it back into the draw deck unseen. Play continues.</p>
+          </div>
+          <div>
+            <h2>Hidden Info</h2>
+            <p>You can see your own drawn card, but not the other player or computer's card.</p>
+          </div>
+          <div>
+            <h2>Computer Mode</h2>
+            <p>In Play computer mode, Player 2 acts automatically using a simple prototype strategy.</p>
+          </div>
+        </div>
+      </details>
+
+      <section class="play-area" aria-label="Game board">
+        <aside class="player-panel" id="playerOnePanel">
+          <div class="player-heading">
+            <div class="role-seal" aria-hidden="true">I</div>
+            <div>
+              <p class="eyebrow">Player 1</p>
+              <h2 id="playerOneRole">Hidden</h2>
+            </div>
+            <button class="secondary reveal-btn" type="button" data-player="0">Peek Role</button>
+          </div>
+          <figure class="role-portrait hidden-role">
+            <img id="playerOnePortrait" src="assets/role-guest-clear.png" alt="Player 1 role portrait" />
+            <figcaption id="playerOneCaption">Your role</figcaption>
+          </figure>
+          <div class="hand" id="playerOneHand"></div>
+          <div class="intel" id="playerOneIntel"></div>
+        </aside>
+
+        <section class="table" aria-label="Three glasses">
+          <div class="table-note" id="messageLog">Each player holds one drawn card. Click a destination glass to place it. Drinking reveals 2 random cards at 5 units.</div>
+          <div class="death-banner" id="deathBanner" hidden>
+            <img src="assets/death-reveal.png" alt="An overturned goblet and snuffed candle mark a fatal drink." />
+            <div>
+              <p class="eyebrow">Fatal drink</p>
+              <strong>Roles are revealed</strong>
+            </div>
+          </div>
+          <figure class="silent-guest-scene">
+            <img src="assets/silent-guest-portrait.png" alt="The Silent Guest's empty chair and untouched glass." />
+            <figcaption>
+              <span class="eyebrow">Silent Guest</span>
+              <strong>The witness at the center of the table</strong>
+            </figcaption>
+          </figure>
+          <div class="glasses" id="glasses"></div>
+        </section>
+
+        <aside class="player-panel" id="playerTwoPanel">
+          <div class="player-heading">
+            <div class="role-seal" aria-hidden="true">II</div>
+            <div>
+              <p class="eyebrow" id="playerTwoType">Computer</p>
+              <h2 id="playerTwoRole">Hidden</h2>
+            </div>
+            <button class="secondary reveal-btn" type="button" data-player="1">Peek Role</button>
+          </div>
+          <figure class="role-portrait hidden-role">
+            <img id="playerTwoPortrait" src="assets/role-guest-clear.png" alt="Player 2 role portrait" />
+            <figcaption id="playerTwoCaption">Hidden role</figcaption>
+          </figure>
+          <div class="hand" id="playerTwoHand"></div>
+          <div class="intel" id="playerTwoIntel"></div>
+        </aside>
+      </section>
+
+      <section class="rules-panel" aria-label="Prototype rule notes">
+        <div>
+          <h2>Drinking</h2>
+          <p>Once a glass reaches 5 units, it is drunk. Reveal 2 random cards; Poison eliminates unless Antidote is also revealed.</p>
+        </div>
+        <div>
+          <h2>Silent Guest</h2>
+          <p>If Poison kills the Silent Guest, reveal both player roles. Each player gets one Final Toast turn, then drinks their own glass if it has 3 or more cards. If no player dies, the Guest wins.</p>
+        </div>
+        <div>
+          <h2>Safe Drink</h2>
+          <p>If the drinker survives, empty that glass, shuffle every card back into the draw deck unseen, and continue play.</p>
+        </div>
+      </section>
+
+      <section class="drink-reveal" id="drinkReveal" aria-live="assertive" aria-hidden="true">
+        <div class="drink-reveal-panel">
+          <p class="eyebrow">Drink resolution</p>
+          <h2 id="revealTitle">A glass is drunk</h2>
+          <p id="revealSubtitle">Two cards will be revealed.</p>
+          <div class="reveal-graphic" id="revealGraphic" hidden>
+            <img src="assets/poisoning-reveal.png" alt="Poison vapor rising from a glass." />
+          </div>
+          <div class="reveal-cards" id="revealCards"></div>
+          <p class="reveal-result" id="revealResult"></p>
+          <button id="revealContinueBtn" type="button">Continue</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>

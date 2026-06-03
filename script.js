@@ -1,6 +1,5 @@
 const GLASS_LIMIT = 5;
 const DRINK_REVEAL_COUNT = 2;
-const FINAL_TOAST_DRINK_MINIMUM = 3;
 
 const cardTypes = [
   { name: "Poison", kind: "danger", units: 1, image: "assets/poison-vial.png", text: "1 unit. If revealed while drinking, the drinker is eliminated." },
@@ -76,11 +75,7 @@ function createDeck() {
 }
 
 function drawCard() {
-  if (state.deck.length === 0) {
-    state.log = "The deck is empty. Start a new game to continue.";
-    state.gameOver = true;
-    return null;
-  }
+  if (state.deck.length === 0) return null;
   return state.deck.pop();
 }
 
@@ -89,9 +84,8 @@ function drawHand() {
   return card ? [card] : [];
 }
 
-function returnCardsToDeck(cards) {
-  const cleanCards = cards.map((card) => createCard(card.name));
-  state.deck = shuffle([...state.deck, ...cleanCards]);
+function discardDrinkCards(cards) {
+  state.discard.push(...cards.map((card) => ({ ...card })));
 }
 
 function randomPoisonerGlassIndex() {
@@ -107,7 +101,6 @@ function newGame() {
     computerThinking: false,
     gameOver: false,
     deathEvent: false,
-    finalToast: null,
     winnerIndex: null,
     winnerRole: null,
     winnerTeam: null,
@@ -119,6 +112,7 @@ function newGame() {
     deadLabel: null,
     gameOverPrompt: false,
     deck: createDeck(),
+    discard: [],
     lastReveal: [],
     reveal: null,
     players: [
@@ -238,21 +232,21 @@ function completeDrinkReveal() {
     return;
   }
 
-  returnCardsToDeck(glass.stack);
+  discardDrinkCards(glass.stack);
   glass.stack = [];
   glass.knownPoisoned = false;
 
   if (reveal.drinker !== null) {
     state.players[reveal.drinker].safeTastes += 1;
-    state.players[reveal.drinker].intel.unshift(`Safe drink: revealed ${reveal.revealedNames}; ${reveal.returnedCount} cards returned unseen.`);
+    state.players[reveal.drinker].intel.unshift(`Safe drink: revealed ${reveal.revealedNames}; ${reveal.returnedCount} cards discarded unseen.`);
   } else {
     state.players.forEach((player) => {
-      player.intel.unshift(`Silent Guest safe drink: revealed ${reveal.revealedNames}; the rest returned unseen.`);
+      player.intel.unshift(`Silent Guest safe drink: revealed ${reveal.revealedNames}; the rest discarded unseen.`);
     });
   }
 
   const safeReason = reveal.poisonRevealed ? "Poison appeared, but Antidote cancelled it" : "No poison appeared";
-  state.log = `${reveal.prefix} Drinking revealed ${reveal.revealedNames}. ${safeReason}, so all ${reveal.returnedCount} cards were shuffled back into the deck unseen.`;
+  state.log = `${reveal.prefix} Drinking revealed ${reveal.revealedNames}. ${safeReason}, so all ${reveal.returnedCount} cards were discarded unseen.`;
   endTurn();
 }
 
@@ -267,7 +261,7 @@ function eliminateDrinker(drinker, message) {
       finishGame(`${message} The Silent Guest was the Poisoner and is destroyed. The game ends.`, "Guest", true);
       return;
     }
-    startFinalToast(`${message} The Silent Guest dies as a Guest. Roles are revealed. Final Toast begins: each player gets one final turn, then must drink their own glass if it has 3 or more cards. If the Poisoner survives, the Poisoner wins.`);
+    finishGame(`${message} The Silent Guest was a Guest. The Poisoner wins.`, "Poisoner", true);
     return;
   }
 
@@ -280,7 +274,6 @@ function eliminateDrinker(drinker, message) {
 
 function finishGame(message, winner, revealRoles = false) {
   state.gameOver = true;
-  state.finalToast = null;
   state.gameOverPrompt = true;
   const winnerTeam = typeof winner === "string" ? winner : winner === null ? null : state.players[winner].role;
   state.winnerIndex = typeof winner === "number" ? winner : null;
@@ -297,40 +290,25 @@ function finishGame(message, winner, revealRoles = false) {
   render();
 }
 
-function startFinalToast(message) {
-  revealAllRoles();
-  state.players.forEach((player) => {
-    player.intel.unshift("Final Toast: after your final turn, drink your own glass if it has 3 or more cards. If the Poisoner survives, the Poisoner wins.");
-  });
-  state.finalToast = {
-    turnsRemaining: state.players.length,
-  };
-  state.log = message;
-  endTurn(false);
+function finishDeckEmpty() {
+  if (state.gameOver) return;
+  finishGame("The deck has run out and nobody has died. The Guests survive the night.", "Guest", true);
 }
 
-function endTurn(countFinalToastTurn = true) {
+function endTurn() {
   if (state.gameOver) return;
   state.computerThinking = false;
 
-  if (state.finalToast && countFinalToastTurn) {
-    const ownGlassIndex = state.currentPlayer === 0 ? 0 : 2;
-    const ownGlass = state.glasses[ownGlassIndex];
-    if (ownGlass.stack.length >= FINAL_TOAST_DRINK_MINIMUM) {
-      state.log = `Final Toast: ${glassNames[state.currentPlayer * 2]} must drink their own glass.`;
-      drinkGlass(ownGlassIndex, false);
-      return;
-    }
-
-    state.finalToast.turnsRemaining -= 1;
-    if (state.finalToast.turnsRemaining <= 0) {
-      finishGame("Final Toast ends with the Poisoner still alive.", "Poisoner", true);
-      return;
-    }
-  }
-
   state.currentPlayer = opponentOf(state.currentPlayer);
   if (state.currentPlayer === 0) state.round += 1;
+  if (activePlayer().hand.length === 0) {
+    const nextCard = drawCard();
+    if (!nextCard) {
+      finishDeckEmpty();
+      return;
+    }
+    activePlayer().hand.push(nextCard);
+  }
   render();
 }
 
@@ -365,7 +343,10 @@ function computerTakeTurn() {
   }
 
   const card = activePlayer().hand[0];
-  if (!card) return;
+  if (!card) {
+    finishDeckEmpty();
+    return;
+  }
   placeCardForCurrentPlayer(chooseComputerTarget(card), true);
 }
 
@@ -422,6 +403,11 @@ function placeCardForCurrentPlayer(glassIndex, computer = false) {
     return;
   }
 
+  if (!nextCard) {
+    finishDeckEmpty();
+    return;
+  }
+
   endTurn();
 }
 
@@ -448,9 +434,7 @@ function render() {
   el.turnLabel.textContent = state.gameOver ? "Game over" : state.currentPlayer === 1 && state.mode === "computer" ? "Computer" : `Player ${state.currentPlayer + 1}`;
   el.phaseLabel.textContent = isRevealActive()
     ? "Drink reveal"
-    : state.finalToast
-      ? `Final Toast: ${state.finalToast.turnsRemaining} turn${state.finalToast.turnsRemaining === 1 ? "" : "s"} left`
-      : computerTurn
+    : computerTurn
         ? "Computer thinking"
         : "Place or drink";
   el.roundLabel.textContent = state.round;
@@ -505,7 +489,7 @@ function render() {
 
 function renderResultBanner() {
   if (!state.gameOver || state.winnerTeam === null) {
-    el.deathBannerKicker.textContent = state.finalToast ? "Final Toast" : "Fatal drink";
+    el.deathBannerKicker.textContent = "Fatal drink";
     el.deathBannerTitle.textContent = state.deathEvent ? "Roles are revealed" : "";
     el.deathBannerDetail.textContent = "";
     return;

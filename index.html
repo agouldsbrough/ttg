@@ -24,6 +24,7 @@
           </label>
           <button id="newGameBtn" type="button">New Game</button>
           <button id="passBtn" type="button" class="secondary">Pass Turn</button>
+          <button id="debugBtn" type="button" class="secondary">Show Debug</button>
         </div>
       </section>
 
@@ -42,12 +43,24 @@
         </div>
       </section>
 
+      <section class="debug-panel" id="debugPanel" hidden>
+        <p class="eyebrow">Playtest debug</p>
+        <strong id="debugPoisoner">Poisoner: hidden</strong>
+        <span id="debugRoles"></span>
+        <div class="debug-actions" aria-label="Force role setup">
+          <button type="button" class="secondary" data-force-poisoner="0">Force P1 Poisoner</button>
+          <button type="button" class="secondary" data-force-poisoner="1">Force Silent Poisoner</button>
+          <button type="button" class="secondary" data-force-poisoner="2">Force P2 Poisoner</button>
+          <button type="button" class="secondary" data-force-poisoner="random">Random Poisoner</button>
+        </div>
+      </section>
+
       <details class="rules-dropdown">
         <summary>Rule Summary</summary>
         <div class="rules-menu">
           <div>
             <h2>Goal</h2>
-            <p>The Poisoner tries to kill a player with Poison. If the Silent Guest dies, roles are revealed and Final Toast begins.</p>
+            <p>The Poisoner is randomly assigned to Player 1, Player 2, or the Silent Guest. Guests win as a team if the Poisoner dies.</p>
           </div>
           <div>
             <h2>Turns</h2>
@@ -55,7 +68,7 @@
           </div>
           <div>
             <h2>Glasses</h2>
-            <p>There are three glasses: Player 1, the Silent Guest, and Player 2. Every card is 1 unit.</p>
+            <p>There are three glasses: Player 1, the Silent Guest, and Player 2. Any one of them may secretly be the Poisoner.</p>
           </div>
           <div>
             <h2>Drinking</h2>
@@ -88,6 +101,7 @@
               <p class="eyebrow">Player 1</p>
               <h2 id="playerOneRole">Hidden</h2>
             </div>
+            <span class="result-badge" id="playerOneResult" hidden></span>
             <button class="secondary reveal-btn" type="button" data-player="0">Peek Role</button>
           </div>
           <figure class="role-portrait hidden-role">
@@ -103,8 +117,9 @@
           <div class="death-banner" id="deathBanner" hidden>
             <img src="assets/death-reveal.png" alt="An overturned goblet and snuffed candle mark a fatal drink." />
             <div>
-              <p class="eyebrow">Fatal drink</p>
-              <strong>Roles are revealed</strong>
+              <p class="eyebrow" id="deathBannerKicker">Fatal drink</p>
+              <strong id="deathBannerTitle">Roles are revealed</strong>
+              <span id="deathBannerDetail"></span>
             </div>
           </div>
           <figure class="silent-guest-scene">
@@ -112,6 +127,7 @@
             <figcaption>
               <span class="eyebrow">Silent Guest</span>
               <strong>The witness at the center of the table</strong>
+              <small id="silentGuestRole">Role hidden</small>
             </figcaption>
           </figure>
           <div class="glasses" id="glasses"></div>
@@ -124,6 +140,7 @@
               <p class="eyebrow" id="playerTwoType">Computer</p>
               <h2 id="playerTwoRole">Hidden</h2>
             </div>
+            <span class="result-badge" id="playerTwoResult" hidden></span>
             <button class="secondary reveal-btn" type="button" data-player="1">Peek Role</button>
           </div>
           <figure class="role-portrait hidden-role">
@@ -142,7 +159,7 @@
         </div>
         <div>
           <h2>Silent Guest</h2>
-          <p>If Poison kills the Silent Guest, reveal both player roles. Each player gets one Final Toast turn, then drinks their own glass if it has 3 or more cards. If no player dies, the Guest wins.</p>
+          <p>If Poison kills the Silent Guest as a Guest, reveal all roles and begin Final Toast. If the Silent Guest was the Poisoner, both human Guests win together.</p>
         </div>
         <div>
           <h2>Safe Drink</h2>

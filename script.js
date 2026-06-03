@@ -20,6 +20,7 @@ const glassNames = ["Player 1", "Silent Guest", "Player 2"];
 const glassImages = ["assets/wine-glass.png", "assets/water-goblet.png", "assets/wine-glass.png"];
 
 let state;
+let forcedPoisonerGlassIndex = null;
 
 const el = {
   turnLabel: document.querySelector("#turnLabel"),
@@ -30,11 +31,16 @@ const el = {
   hands: [document.querySelector("#playerOneHand"), document.querySelector("#playerTwoHand")],
   panels: [document.querySelector("#playerOnePanel"), document.querySelector("#playerTwoPanel")],
   roles: [document.querySelector("#playerOneRole"), document.querySelector("#playerTwoRole")],
+  resultBadges: [document.querySelector("#playerOneResult"), document.querySelector("#playerTwoResult")],
   portraits: [document.querySelector("#playerOnePortrait"), document.querySelector("#playerTwoPortrait")],
   portraitCaptions: [document.querySelector("#playerOneCaption"), document.querySelector("#playerTwoCaption")],
   intel: [document.querySelector("#playerOneIntel"), document.querySelector("#playerTwoIntel")],
   passBtn: document.querySelector("#passBtn"),
   newGameBtn: document.querySelector("#newGameBtn"),
+  debugBtn: document.querySelector("#debugBtn"),
+  debugPanel: document.querySelector("#debugPanel"),
+  debugPoisoner: document.querySelector("#debugPoisoner"),
+  debugRoles: document.querySelector("#debugRoles"),
   modeSelect: document.querySelector("#modeSelect"),
   playerTwoType: document.querySelector("#playerTwoType"),
   drinkReveal: document.querySelector("#drinkReveal"),
@@ -45,6 +51,10 @@ const el = {
   revealResult: document.querySelector("#revealResult"),
   revealContinueBtn: document.querySelector("#revealContinueBtn"),
   deathBanner: document.querySelector("#deathBanner"),
+  deathBannerKicker: document.querySelector("#deathBannerKicker"),
+  deathBannerTitle: document.querySelector("#deathBannerTitle"),
+  deathBannerDetail: document.querySelector("#deathBannerDetail"),
+  silentGuestRole: document.querySelector("#silentGuestRole"),
 };
 
 function shuffle(items) {
@@ -84,8 +94,12 @@ function returnCardsToDeck(cards) {
   state.deck = shuffle([...state.deck, ...cleanCards]);
 }
 
+function randomPoisonerGlassIndex() {
+  return Math.floor(Math.random() * glassNames.length);
+}
+
 function newGame() {
-  const roles = shuffle(["Poisoner", "Guest"]);
+  const poisonerGlassIndex = forcedPoisonerGlassIndex ?? randomPoisonerGlassIndex();
   state = {
     currentPlayer: 0,
     round: 1,
@@ -94,14 +108,24 @@ function newGame() {
     gameOver: false,
     deathEvent: false,
     finalToast: null,
+    winnerIndex: null,
+    winnerRole: null,
+    winnerTeam: null,
+    resultSummary: null,
+    poisonerGlassIndex,
+    silentRoleVisible: false,
+    debugVisible: false,
+    deadGlassIndex: null,
+    deadLabel: null,
+    gameOverPrompt: false,
     deck: createDeck(),
     lastReveal: [],
     reveal: null,
     players: [
-      { role: roles[0], hand: [], safeTastes: 0, intel: ["No drink evidence yet."], roleVisible: true, eliminated: false },
-      { role: roles[1], hand: [], safeTastes: 0, intel: ["No drink evidence yet."], roleVisible: false, eliminated: false },
+      { role: poisonerGlassIndex === 0 ? "Poisoner" : "Guest", hand: [], safeTastes: 0, intel: ["No drink evidence yet."], roleVisible: true, eliminated: false },
+      { role: poisonerGlassIndex === 2 ? "Poisoner" : "Guest", hand: [], safeTastes: 0, intel: ["No drink evidence yet."], roleVisible: false, eliminated: false },
     ],
-    glasses: glassNames.map((name, index) => ({ name, index, stack: [], drinks: 0 })),
+    glasses: glassNames.map((name, index) => ({ name, index, stack: [], drinks: 0, knownPoisoned: false, disabled: false })),
     log: "Each player holds one drawn card. Click a destination glass to place it. Drinking reveals 2 random cards at 5 units.",
   };
   state.players[0].hand = drawHand();
@@ -123,13 +147,44 @@ function ownerOfGlass(glassIndex) {
   return null;
 }
 
+function roleOfGlass(glassIndex) {
+  return state.poisonerGlassIndex === glassIndex ? "Poisoner" : "Guest";
+}
+
+function labelForGlass(glassIndex) {
+  if (glassIndex === 0) return "Player 1";
+  if (glassIndex === 2) return "Player 2";
+  return "Silent Guest";
+}
+
+function revealAllRoles() {
+  state.players.forEach((player) => {
+    player.roleVisible = true;
+  });
+  state.silentRoleVisible = true;
+}
+
+function poisonerLabel() {
+  return labelForGlass(state.poisonerGlassIndex);
+}
+
 function placeSelectedCard(glassIndex) {
   if (state.gameOver || isRevealActive() || activePlayer().hand.length === 0 || isComputerTurn()) return;
+  if (state.glasses[glassIndex].disabled) {
+    state.log = `${state.glasses[glassIndex].name}'s glass is broken and cannot receive more cards.`;
+    render();
+    return;
+  }
   placeCardForCurrentPlayer(glassIndex);
 }
 
 function manualDrink(glassIndex) {
   if (state.gameOver || isRevealActive() || isComputerTurn()) return;
+  if (state.glasses[glassIndex].disabled) {
+    state.log = `${state.glasses[glassIndex].name}'s glass is broken and out of play.`;
+    render();
+    return;
+  }
   if (state.glasses[glassIndex].stack.length < GLASS_LIMIT) {
     state.log = "That glass does not contain 5 units yet.";
     render();
@@ -178,12 +233,14 @@ function completeDrinkReveal() {
 
   if (reveal.poisoned) {
     glass.stack = [];
+    glass.knownPoisoned = false;
     eliminateDrinker(reveal.drinker, `${reveal.prefix} Drinking revealed ${reveal.revealedNames}. Poison was found.`);
     return;
   }
 
   returnCardsToDeck(glass.stack);
   glass.stack = [];
+  glass.knownPoisoned = false;
 
   if (reveal.drinker !== null) {
     state.players[reveal.drinker].safeTastes += 1;
@@ -203,34 +260,47 @@ function eliminateDrinker(drinker, message) {
   state.deathEvent = true;
 
   if (drinker === null) {
-    startFinalToast(`${message} The Silent Guest dies. Roles are revealed. Final Toast begins: each player gets one final turn, then must drink their own glass if it has 3 or more cards. If no player dies, the Guest wins.`);
+    state.deadGlassIndex = 1;
+    state.deadLabel = "Silent Guest died";
+    state.glasses[1].disabled = true;
+    if (roleOfGlass(1) === "Poisoner") {
+      finishGame(`${message} The Silent Guest was the Poisoner and is destroyed. The game ends.`, "Guest", true);
+      return;
+    }
+    startFinalToast(`${message} The Silent Guest dies as a Guest. Roles are revealed. Final Toast begins: each player gets one final turn, then must drink their own glass if it has 3 or more cards. If the Poisoner survives, the Poisoner wins.`);
     return;
   }
 
   state.players[drinker].eliminated = true;
-  const winner = state.players[drinker].role === "Poisoner" ? opponentOf(drinker) : state.players.findIndex((player) => player.role === "Poisoner");
-  finishGame(`${message} Player ${drinker + 1} is eliminated. The game ends.`, winner, true);
+  state.deadGlassIndex = drinker === 0 ? 0 : 2;
+  state.deadLabel = `Player ${drinker + 1} died`;
+  const winnerTeam = state.players[drinker].role === "Poisoner" ? "Guest" : "Poisoner";
+  finishGame(`${message} Player ${drinker + 1} is eliminated. The game ends.`, winnerTeam, true);
 }
 
-function finishGame(message, winnerIndex, revealRoles = false) {
+function finishGame(message, winner, revealRoles = false) {
   state.gameOver = true;
   state.finalToast = null;
-  const poisonerIndex = state.players.findIndex((player) => player.role === "Poisoner");
+  state.gameOverPrompt = true;
+  const winnerTeam = typeof winner === "string" ? winner : winner === null ? null : state.players[winner].role;
+  state.winnerIndex = typeof winner === "number" ? winner : null;
+  state.winnerTeam = winnerTeam;
+  state.winnerRole = winnerTeam;
   if (revealRoles) {
-    state.players.forEach((player) => {
-      player.roleVisible = true;
-    });
+    revealAllRoles();
   }
-  const winnerText = winnerIndex === null ? "" : ` Winner: Player ${winnerIndex + 1}.`;
-  const poisonerText = revealRoles ? ` The Poisoner was Player ${poisonerIndex + 1}.` : "";
-  state.log = `${message}${winnerText}${poisonerText}`;
+  const poisonerText = revealRoles ? ` The Poisoner was ${poisonerLabel()}.` : "";
+  state.resultSummary = winnerTeam === null
+    ? "No winner"
+    : `${winnerTeam} team wins.`;
+  state.log = `${state.resultSummary} ${message}${poisonerText}`;
   render();
 }
 
 function startFinalToast(message) {
+  revealAllRoles();
   state.players.forEach((player) => {
-    player.roleVisible = true;
-    player.intel.unshift("Final Toast: after your final turn, drink your own glass if it has 3 or more cards. If no player dies, the Guest wins.");
+    player.intel.unshift("Final Toast: after your final turn, drink your own glass if it has 3 or more cards. If the Poisoner survives, the Poisoner wins.");
   });
   state.finalToast = {
     turnsRemaining: state.players.length,
@@ -254,8 +324,7 @@ function endTurn(countFinalToastTurn = true) {
 
     state.finalToast.turnsRemaining -= 1;
     if (state.finalToast.turnsRemaining <= 0) {
-      const guestIndex = state.players.findIndex((player) => player.role === "Guest");
-      finishGame("Final Toast ends with no player death. The Guest survives the accusation.", guestIndex, true);
+      finishGame("Final Toast ends with the Poisoner still alive.", "Poisoner", true);
       return;
     }
   }
@@ -303,15 +372,19 @@ function computerTakeTurn() {
 function chooseComputerDrink() {
   const ownGlass = state.glasses[2];
   if (ownGlass.stack.length >= GLASS_LIMIT && activePlayer().role === "Guest") return 2;
-  const fullGlass = state.glasses.find((glass) => glass.stack.length >= GLASS_LIMIT);
+  const fullGlass = state.glasses.find((glass) => !glass.disabled && glass.stack.length >= GLASS_LIMIT);
   return fullGlass ? fullGlass.index : null;
 }
 
 function chooseComputerTarget(card) {
-  const leastFull = (indexes) => shuffle(indexes).sort((a, b) => state.glasses[a].stack.length - state.glasses[b].stack.length)[0];
+  const playableIndexes = (indexes) => indexes.filter((index) => !state.glasses[index].disabled);
+  const leastFull = (indexes) => {
+    const choices = playableIndexes(indexes);
+    return shuffle(choices.length ? choices : [0, 2]).sort((a, b) => state.glasses[a].stack.length - state.glasses[b].stack.length)[0];
+  };
 
   if (activePlayer().role === "Poisoner") {
-    if (card.kind === "danger") return Math.random() < 0.65 ? 0 : 1;
+    if (card.kind === "danger") return leastFull(Math.random() < 0.65 ? [0] : [1, 0]);
     if (card.kind === "safe") return 2;
     return leastFull([0, 1, 2]);
   }
@@ -325,9 +398,17 @@ function placeCardForCurrentPlayer(glassIndex, computer = false) {
   const player = activePlayer();
   const cardIndex = 0;
   if (!player.hand[cardIndex]) return;
+  if (state.glasses[glassIndex].disabled) {
+    state.log = `${state.glasses[glassIndex].name}'s glass is broken and cannot receive more cards.`;
+    render();
+    return;
+  }
 
   const [card] = player.hand.splice(cardIndex, 1);
   state.glasses[glassIndex].stack.push({ ...card, placedBy: state.currentPlayer, round: state.round });
+  if (state.currentPlayer === 0 && card.kind === "danger") {
+    state.glasses[glassIndex].knownPoisoned = true;
+  }
   const nextCard = drawCard();
   if (nextCard) player.hand.push(nextCard);
 
@@ -350,6 +431,18 @@ function toggleRole(playerIndex) {
   render();
 }
 
+function toggleDebug() {
+  state.debugVisible = !state.debugVisible;
+  render();
+}
+
+function forcePoisoner(value) {
+  forcedPoisonerGlassIndex = value === "random" ? null : Number(value);
+  newGame();
+  state.debugVisible = true;
+  render();
+}
+
 function render() {
   const computerTurn = isComputerTurn();
   el.turnLabel.textContent = state.gameOver ? "Game over" : state.currentPlayer === 1 && state.mode === "computer" ? "Computer" : `Player ${state.currentPlayer + 1}`;
@@ -363,13 +456,25 @@ function render() {
   el.roundLabel.textContent = state.round;
   el.messageLog.textContent = state.log;
   el.deathBanner.hidden = !state.deathEvent;
+  el.newGameBtn.classList.toggle("urgent", state.gameOver);
   el.passBtn.disabled = state.gameOver || computerTurn || isRevealActive();
   el.modeSelect.disabled = computerTurn || isRevealActive();
   el.playerTwoType.textContent = state.mode === "computer" ? "Computer" : "Player 2";
+  el.silentGuestRole.textContent = state.silentRoleVisible ? roleOfGlass(1) : "Role hidden";
+  el.silentGuestRole.classList.toggle("revealed", state.silentRoleVisible);
+  el.silentGuestRole.classList.toggle("poisoner", state.silentRoleVisible && roleOfGlass(1) === "Poisoner");
+  el.debugBtn.textContent = state.debugVisible ? "Hide Debug" : "Show Debug";
+  el.debugPanel.hidden = !state.debugVisible;
+  const forceLabel = forcedPoisonerGlassIndex === null ? "Random" : `Forced ${labelForGlass(forcedPoisonerGlassIndex)}`;
+  el.debugPoisoner.textContent = `Poisoner: ${poisonerLabel()} (${forceLabel})`;
+  el.debugRoles.textContent = `Player 1: ${state.players[0].role} | Silent Guest: ${roleOfGlass(1)} | Player 2: ${state.players[1].role}`;
 
   state.players.forEach((player, index) => {
     el.panels[index].classList.toggle("active", index === state.currentPlayer && !state.gameOver);
     el.panels[index].classList.toggle("eliminated", player.eliminated);
+    const playerTeamWon = state.gameOver && state.winnerTeam !== null && player.role === state.winnerTeam;
+    el.panels[index].classList.toggle("winner", playerTeamWon);
+    el.panels[index].classList.toggle("loser", state.gameOver && state.winnerTeam !== null && !playerTeamWon);
     el.panels[index].classList.toggle("poisoner", player.roleVisible && player.role === "Poisoner");
     el.panels[index].classList.toggle("guest", player.roleVisible && player.role === "Guest");
     el.panels[index].querySelector(".role-portrait").classList.toggle("hidden-role", !player.roleVisible);
@@ -380,6 +485,10 @@ function render() {
     const revealButton = el.panels[index].querySelector(".reveal-btn");
     revealButton.hidden = index !== 0 && !state.gameOver;
     revealButton.textContent = player.roleVisible ? "Hide Role" : "Peek Role";
+    el.resultBadges[index].hidden = !state.gameOver || state.winnerTeam === null;
+    el.resultBadges[index].textContent = playerTeamWon ? "Winner" : "Defeated";
+    el.resultBadges[index].classList.toggle("winner", playerTeamWon);
+    el.resultBadges[index].classList.toggle("loser", state.gameOver && state.winnerTeam !== null && !playerTeamWon);
     el.hands[index].innerHTML = player.hand.map((card) => cardButton(card, index)).join("");
     el.intel[index].innerHTML = `
       <strong>Safe drinks: ${player.safeTastes}</strong>
@@ -388,9 +497,24 @@ function render() {
   });
 
   el.glasses.innerHTML = state.glasses.map(glassView).join("");
+  renderResultBanner();
   bindDynamicEvents();
   renderDrinkReveal();
   scheduleComputerTurn();
+}
+
+function renderResultBanner() {
+  if (!state.gameOver || state.winnerTeam === null) {
+    el.deathBannerKicker.textContent = state.finalToast ? "Final Toast" : "Fatal drink";
+    el.deathBannerTitle.textContent = state.deathEvent ? "Roles are revealed" : "";
+    el.deathBannerDetail.textContent = "";
+    return;
+  }
+
+  el.deathBanner.hidden = false;
+  el.deathBannerKicker.textContent = "Game over";
+  el.deathBannerTitle.textContent = state.winnerTeam === "Guest" ? "Guests win" : "Poisoner wins";
+  el.deathBannerDetail.textContent = `Poisoner: ${poisonerLabel()}. Start a new game to play again.`;
 }
 
 function renderDrinkReveal() {
@@ -500,25 +624,35 @@ function glassView(glass) {
   const safetyLabel = glass.index === 1 ? "Drinks" : "Safe drinks";
   const fillPercent = Math.min(86, 12 + glass.stack.length * 16);
   const glassTone = glass.index === 1 ? "silent" : "player";
+  const poisonClass = glass.knownPoisoned ? "known-poisoned" : "";
+  const poisonMarker = glass.knownPoisoned ? `<span class="poison-marker">Known poison</span>` : "";
+  const deadClass = state.deadGlassIndex === glass.index ? "death-site" : "";
+  const deathMarker = state.deadGlassIndex === glass.index ? `<span class="death-marker">${state.deadLabel}</span><span class="broken-marker">Broken glass</span>` : "";
+  const disabledClass = glass.disabled ? "out-of-play" : "";
+  const outOfPlayMarker = glass.disabled ? `<span class="out-of-play-marker">Out of play</span>` : "";
   return `
-    <article class="glass ${glassTone}" data-glass-target="${glass.index}">
+    <article class="glass ${glassTone} ${poisonClass} ${deadClass} ${disabledClass}" data-glass-target="${glass.index}">
       <div>
         <h3>${glass.name}</h3>
         <div class="glass-stats">
           <span>${totalKnownToTester}</span>
           <span>${safetyLabel}: ${safety}</span>
+          ${poisonMarker}
+          ${deathMarker}
+          ${outOfPlayMarker}
         </div>
       </div>
       <div class="glass-illustration" aria-hidden="true">
         <img class="glass-art" src="${glassImages[glass.index]}" alt="" />
+        ${state.deadGlassIndex === glass.index ? `<div class="crack-lines"></div>` : ""}
         <div class="liquid-meter" style="height: ${glass.stack.length ? fillPercent : 8}%"></div>
       </div>
       <div class="glass-stack" aria-label="Hidden cards in ${glass.name}'s glass">
         ${glass.stack.map((card) => `<div class="stack-card hidden">Hidden unit from Player ${card.placedBy + 1}</div>`).join("") || `<div class="stack-card">No cards</div>`}
       </div>
       <div class="glass-actions">
-        <button type="button" data-glass="${glass.index}" ${state.gameOver || isRevealActive() || activePlayer().hand.length === 0 || isComputerTurn() ? "disabled" : ""}>Place Here</button>
-        <button class="secondary" type="button" data-drink="${glass.index}" ${state.gameOver || isRevealActive() || glass.stack.length < GLASS_LIMIT || isComputerTurn() ? "disabled" : ""}>Drink</button>
+        <button type="button" data-glass="${glass.index}" ${glass.disabled || state.gameOver || isRevealActive() || activePlayer().hand.length === 0 || isComputerTurn() ? "disabled" : ""}>Place Here</button>
+        <button class="secondary" type="button" data-drink="${glass.index}" ${glass.disabled || state.gameOver || isRevealActive() || glass.stack.length < GLASS_LIMIT || isComputerTurn() ? "disabled" : ""}>Drink</button>
       </div>
     </article>
   `;
@@ -543,8 +677,13 @@ document.querySelectorAll(".reveal-btn").forEach((button) => {
   button.addEventListener("click", () => toggleRole(Number(button.dataset.player)));
 });
 
+document.querySelectorAll("[data-force-poisoner]").forEach((button) => {
+  button.addEventListener("click", () => forcePoisoner(button.dataset.forcePoisoner));
+});
+
 el.passBtn.addEventListener("click", passTurn);
 el.newGameBtn.addEventListener("click", newGame);
+el.debugBtn.addEventListener("click", toggleDebug);
 el.modeSelect.addEventListener("change", newGame);
 el.revealContinueBtn.addEventListener("click", completeDrinkReveal);
 

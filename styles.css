@@ -87,6 +87,13 @@ button.secondary:focus-visible:not(:disabled) {
   color: var(--accent-strong);
 }
 
+button.urgent {
+  animation: urgent-pulse 1.4s ease-in-out infinite;
+  background: linear-gradient(135deg, #173a29, #237047);
+  border-color: rgba(243, 217, 157, 0.65);
+  box-shadow: 0 0 0 3px rgba(243, 217, 157, 0.16), 0 12px 28px rgba(35, 112, 71, 0.28);
+}
+
 .app-shell {
   width: min(1440px, 100%);
   margin: 0 auto;
@@ -198,6 +205,51 @@ button.secondary:focus-visible:not(:disabled) {
   min-width: 130px;
 }
 
+.debug-panel {
+  background:
+    linear-gradient(135deg, rgba(24, 16, 14, 0.94), rgba(68, 27, 31, 0.9)),
+    #18100e;
+  border: 1px dashed rgba(243, 217, 157, 0.48);
+  border-radius: 8px;
+  box-shadow: 0 14px 34px rgba(18, 10, 9, 0.24);
+  color: #fffaf1;
+  display: grid;
+  gap: 5px;
+  margin: -8px 0 18px;
+  padding: 12px 14px;
+}
+
+.debug-panel[hidden] {
+  display: none;
+}
+
+.debug-panel .eyebrow {
+  color: rgba(243, 217, 157, 0.72);
+}
+
+.debug-panel strong {
+  color: var(--gold-soft);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.08rem;
+}
+
+.debug-panel span {
+  color: rgba(255, 250, 241, 0.78);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.debug-actions button {
+  min-height: 34px;
+}
+
 .rules-dropdown {
   background: rgba(255, 250, 241, 0.92);
   border: 1px solid rgba(213, 164, 81, 0.36);
@@ -285,6 +337,16 @@ button.secondary:focus-visible:not(:disabled) {
   box-shadow: var(--soft-glow);
 }
 
+.player-panel.winner {
+  border-color: rgba(35, 112, 71, 0.72);
+  box-shadow: 0 18px 58px rgba(35, 112, 71, 0.28), inset 0 0 0 1px rgba(255, 250, 241, 0.42);
+}
+
+.player-panel.loser {
+  filter: grayscale(0.2);
+  opacity: 0.78;
+}
+
 .player-panel.poisoner {
   background:
     radial-gradient(circle at 50% 12%, rgba(154, 36, 51, 0.2), transparent 12rem),
@@ -335,6 +397,29 @@ button.secondary:focus-visible:not(:disabled) {
 
 .reveal-btn {
   min-width: 96px;
+}
+
+.result-badge {
+  border-radius: 999px;
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  padding: 8px 10px;
+  text-transform: uppercase;
+}
+
+.result-badge.winner {
+  background: linear-gradient(135deg, #173a29, #237047);
+  border: 1px solid rgba(243, 217, 157, 0.5);
+  color: #fffaf1;
+  box-shadow: 0 10px 24px rgba(35, 112, 71, 0.24);
+}
+
+.result-badge.loser {
+  background: linear-gradient(135deg, #2a0f12, #6f2430);
+  border: 1px solid rgba(243, 217, 157, 0.3);
+  color: rgba(255, 250, 241, 0.84);
 }
 
 .role-portrait {
@@ -618,6 +703,15 @@ button.secondary:focus-visible:not(:disabled) {
   line-height: 1.05;
 }
 
+.death-banner span:not(.eyebrow) {
+  color: rgba(255, 250, 241, 0.76);
+  display: block;
+  font-size: 0.88rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-top: 5px;
+}
+
 .silent-guest-scene {
   align-items: stretch;
   background:
@@ -656,6 +750,29 @@ button.secondary:focus-visible:not(:disabled) {
   font-size: 1.42rem;
   line-height: 1.04;
   max-width: 360px;
+}
+
+.silent-guest-scene small {
+  background: rgba(24, 16, 14, 0.72);
+  border: 1px solid rgba(243, 217, 157, 0.34);
+  border-radius: 999px;
+  color: rgba(255, 250, 241, 0.78);
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-top: 10px;
+  padding: 7px 9px;
+  text-transform: uppercase;
+}
+
+.silent-guest-scene small.revealed {
+  color: #fffaf1;
+}
+
+.silent-guest-scene small.poisoner {
+  background: linear-gradient(135deg, #2a0f12, #9a2433);
+  border-color: rgba(243, 217, 157, 0.52);
 }
 
 .glasses {
@@ -717,6 +834,38 @@ button.secondary:focus-visible:not(:disabled) {
   opacity: 1;
 }
 
+.glass.known-poisoned {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(82, 180, 94, 0.28), transparent 10rem),
+    radial-gradient(ellipse at 50% 86%, rgba(13, 42, 26, 0.34), transparent 8rem),
+    linear-gradient(180deg, rgba(246, 255, 232, 0.88), rgba(181, 215, 144, 0.82));
+  border-color: rgba(82, 180, 94, 0.68);
+  box-shadow: inset 0 0 0 1px rgba(246, 255, 232, 0.42), 0 22px 54px rgba(39, 112, 55, 0.28);
+}
+
+.glass.known-poisoned::after {
+  background:
+    radial-gradient(circle at 50% 38%, rgba(92, 220, 104, 0.35), transparent 8rem),
+    radial-gradient(circle at 50% 64%, rgba(25, 92, 45, 0.2), transparent 9rem);
+  opacity: 1;
+}
+
+.glass.known-poisoned .glass-illustration::before {
+  animation: poison-haze 3.2s ease-in-out infinite;
+  background:
+    radial-gradient(ellipse at 46% 72%, rgba(92, 220, 104, 0.32), transparent 3.8rem),
+    radial-gradient(ellipse at 58% 42%, rgba(92, 220, 104, 0.2), transparent 3rem);
+  content: "";
+  height: 160px;
+  left: 50%;
+  pointer-events: none;
+  position: absolute;
+  top: 8px;
+  transform: translateX(-50%);
+  width: 150px;
+  z-index: 3;
+}
+
 .card.facedown:disabled {
   opacity: 1;
 }
@@ -762,6 +911,81 @@ button.secondary:focus-visible:not(:disabled) {
   z-index: 2;
 }
 
+.glass.known-poisoned .glass-art {
+  filter:
+    drop-shadow(0 24px 24px rgba(25, 92, 45, 0.32))
+    drop-shadow(0 0 18px rgba(92, 220, 104, 0.42));
+}
+
+.glass.death-site {
+  background:
+    radial-gradient(circle at 50% 38%, rgba(154, 36, 51, 0.34), transparent 10rem),
+    radial-gradient(ellipse at 50% 86%, rgba(18, 10, 9, 0.38), transparent 8rem),
+    linear-gradient(180deg, rgba(255, 240, 224, 0.9), rgba(168, 116, 110, 0.86));
+  border-color: rgba(154, 36, 51, 0.78);
+  box-shadow: inset 0 0 0 1px rgba(255, 250, 241, 0.36), 0 24px 60px rgba(154, 36, 51, 0.3);
+}
+
+.glass.death-site .glass-art {
+  filter:
+    grayscale(0.22)
+    drop-shadow(0 24px 24px rgba(80, 20, 24, 0.36))
+    drop-shadow(0 0 18px rgba(154, 36, 51, 0.36));
+  opacity: 0.82;
+  transform: rotate(-8deg) translateY(8px);
+}
+
+.glass.death-site .liquid-meter {
+  background:
+    radial-gradient(circle at 50% 8%, rgba(255, 250, 241, 0.34), transparent 1.5rem),
+    linear-gradient(180deg, rgba(116, 21, 32, 0.22), rgba(46, 16, 18, 0.34));
+  opacity: 0.45;
+}
+
+.glass.out-of-play {
+  cursor: not-allowed;
+}
+
+.glass.out-of-play:hover {
+  cursor: not-allowed;
+  transform: none;
+}
+
+.crack-lines {
+  inset: 14px 0 0;
+  left: 50%;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-50%) rotate(-8deg);
+  width: 122px;
+  z-index: 4;
+}
+
+.crack-lines::before,
+.crack-lines::after {
+  background: rgba(255, 250, 241, 0.82);
+  box-shadow: 0 0 8px rgba(154, 36, 51, 0.34);
+  content: "";
+  position: absolute;
+  transform-origin: top;
+}
+
+.crack-lines::before {
+  clip-path: polygon(48% 0, 54% 0, 52% 36%, 62% 42%, 55% 46%, 58% 100%, 49% 100%, 47% 50%, 37% 45%, 45% 39%);
+  height: 150px;
+  left: 42px;
+  top: 4px;
+  width: 32px;
+}
+
+.crack-lines::after {
+  clip-path: polygon(50% 0, 56% 0, 58% 28%, 84% 38%, 80% 45%, 58% 36%, 54% 100%, 47% 100%, 48% 44%, 22% 34%, 26% 27%, 48% 34%);
+  height: 112px;
+  left: 28px;
+  top: 42px;
+  width: 70px;
+}
+
 .liquid-meter {
   animation: liquid-breathe 2.8s ease-in-out infinite;
   background:
@@ -784,6 +1008,77 @@ button.secondary:focus-visible:not(:disabled) {
   background:
     radial-gradient(circle at 50% 8%, rgba(255, 250, 241, 0.38), transparent 1.5rem),
     linear-gradient(180deg, rgba(54, 67, 82, 0.22), rgba(44, 36, 32, 0.48));
+}
+
+.glass.known-poisoned .liquid-meter {
+  background:
+    radial-gradient(circle at 50% 8%, rgba(246, 255, 232, 0.58), transparent 1.5rem),
+    linear-gradient(180deg, rgba(92, 220, 104, 0.44), rgba(25, 112, 45, 0.7));
+  box-shadow: 0 0 18px rgba(92, 220, 104, 0.42);
+}
+
+.poison-marker {
+  align-self: start;
+  background: linear-gradient(135deg, #173a29, #237047);
+  border: 1px solid rgba(243, 217, 157, 0.4);
+  border-radius: 999px;
+  color: #fffaf1;
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-top: 4px;
+  padding: 6px 8px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.death-marker {
+  align-self: start;
+  background: linear-gradient(135deg, #2a0f12, #8f1d2c);
+  border: 1px solid rgba(243, 217, 157, 0.42);
+  border-radius: 999px;
+  color: #fffaf1;
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-top: 4px;
+  padding: 6px 8px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.broken-marker {
+  align-self: start;
+  background: rgba(24, 16, 14, 0.88);
+  border: 1px solid rgba(243, 217, 157, 0.38);
+  border-radius: 999px;
+  color: rgba(255, 250, 241, 0.86);
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-top: 4px;
+  padding: 6px 8px;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.out-of-play-marker {
+  align-self: start;
+  background: rgba(24, 16, 14, 0.72);
+  border: 1px solid rgba(243, 217, 157, 0.32);
+  border-radius: 999px;
+  color: rgba(255, 250, 241, 0.76);
+  display: inline-flex;
+  font-size: 0.68rem;
+  font-weight: 900;
+  line-height: 1;
+  margin-top: 4px;
+  padding: 6px 8px;
+  text-transform: uppercase;
+  width: fit-content;
 }
 
 .bowl {
@@ -1100,6 +1395,16 @@ button.secondary:focus-visible:not(:disabled) {
   50% {
     filter: saturate(1.14) brightness(1.06);
     transform: scale(1.015);
+  }
+}
+
+@keyframes urgent-pulse {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1px);
   }
 }
 
